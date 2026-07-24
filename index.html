@@ -386,12 +386,19 @@
               <span class="sr-only" data-viewer-status aria-live="polite"></span>
             </div>
             <article class="viewer-card" data-viewer-slot>
-              <div class="mesh-viewer" data-multi-viewer data-glb-path="assets/meshes/multi/robot.glb" role="img" aria-label="Interactive viewer for part-wise generated mesh result 1">
+              <div class="mesh-viewer" data-multi-viewer data-glb-path="assets/meshes/multi/1.mt.glb" role="img" aria-label="Interactive viewer for part-wise generated mesh result 1">
                 <span class="viewer-badge">Result 01</span>
                 <span class="mesh-viewer__loading">Loading mesh</span>
                 <span class="viewer-hint">drag to rotate · scroll to zoom</span>
               </div>
               <div class="viewer-card__copy viewer-card__copy--stats">
+                <div class="part-explode-control">
+                  <div class="part-explode-control__head">
+                    <label for="part-explode-slider">Explode parts</label>
+                    <output for="part-explode-slider" data-part-explode-value>0%</output>
+                  </div>
+                  <input id="part-explode-slider" type="range" min="0" max="100" step="1" value="0" data-part-explode aria-label="Explode mesh parts">
+                </div>
                 <div class="mesh-stats mesh-stats--three" aria-label="Part-wise mesh statistics">
                   <div class="mesh-stat">
                     <span>Faces</span>

@@ -18,6 +18,8 @@ const EDIT_MESH_MANIFEST = `${EDIT_MESH_DIRECTORY}manifest.json`;
 const CONTROL_BUDGETS = [200, 500, 1000, 2000, 3000, 4000];
 const MESHES_PER_SET = 3;
 const EDIT_POINT_SIZE_SCALE = 0.036;
+const PART_EXPLOSION_DISTANCE_SCALE = 0.62;
+const PART_EXPLOSION_CAMERA_SCALE = 0.58;
 const formatIndex = (value) => String(value).padStart(2, "0");
 const formatCount = (value) => value.toLocaleString("en-US");
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -320,9 +322,37 @@ const prepareGlbScene = (object, palette, viewport) => {
     vertices,
     faces: Math.floor(faces),
     parts: meshes.length,
+    meshes,
     wireMaterials,
   };
 };
+
+const createExplosionParts = (meshes, radius) => meshes.map((mesh, index) => {
+  const geometry = mesh.geometry;
+  if (!geometry.boundingBox) geometry.computeBoundingBox();
+
+  const localCenter = geometry.boundingBox.getCenter(new THREE.Vector3());
+  const worldCenter = mesh.localToWorld(localCenter.clone());
+  const worldDirection = worldCenter.clone();
+
+  if (worldDirection.length() < radius * 0.03) {
+    const angle = index * Math.PI * (3 - Math.sqrt(5));
+    const vertical = ((index % 5) - 2) * 0.18;
+    worldDirection.set(Math.cos(angle), vertical, Math.sin(angle));
+  }
+  worldDirection.normalize();
+
+  const parent = mesh.parent;
+  const localOrigin = parent.worldToLocal(new THREE.Vector3());
+  const localEnd = parent.worldToLocal(worldDirection.clone());
+  const direction = localEnd.sub(localOrigin).normalize();
+
+  return {
+    mesh,
+    basePosition: mesh.position.clone(),
+    direction,
+  };
+});
 
 const prepareColoredObj = (object, palette, viewport) => {
   const wireColor = new THREE.Color(palette.accentDark);
@@ -628,6 +658,11 @@ const createGlbViewer = (container, slot) => {
   let currentObject = null;
   let currentRequest = 0;
   let wireMaterials = [];
+  let explosionParts = [];
+  let explosionDistance = 0;
+  let currentExplosion = 0;
+  let appliedCameraExplosion = 0;
+  let cameraReady = false;
   let visible = true;
 
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -682,6 +717,30 @@ const createGlbViewer = (container, slot) => {
   };
   animate();
 
+  const setExplosion = (value) => {
+    const nextExplosion = THREE.MathUtils.clamp(Number(value) || 0, 0, 1);
+
+    explosionParts.forEach((part) => {
+      part.mesh.position
+        .copy(part.basePosition)
+        .addScaledVector(part.direction, explosionDistance * nextExplosion);
+    });
+
+    if (cameraReady && nextExplosion !== appliedCameraExplosion) {
+      const previousScale = 1 + appliedCameraExplosion * PART_EXPLOSION_CAMERA_SCALE;
+      const nextScale = 1 + nextExplosion * PART_EXPLOSION_CAMERA_SCALE;
+      const cameraOffset = camera.position.clone().sub(controls.target);
+
+      camera.position
+        .copy(controls.target)
+        .addScaledVector(cameraOffset, nextScale / previousScale);
+      controls.update();
+    }
+
+    currentExplosion = nextExplosion;
+    appliedCameraExplosion = nextExplosion;
+  };
+
   const update = async (item) => {
     const requestId = ++currentRequest;
     const loading = container.querySelector(".mesh-viewer__loading");
@@ -718,6 +777,7 @@ const createGlbViewer = (container, slot) => {
       const centeredBounds = new THREE.Box3().setFromObject(object);
       const sphere = centeredBounds.getBoundingSphere(new THREE.Sphere());
       const radius = Math.max(sphere.radius, 0.01);
+      const nextExplosionParts = createExplosionParts(stats.meshes, radius);
 
       if (currentObject) {
         scene.remove(currentObject);
@@ -726,17 +786,22 @@ const createGlbViewer = (container, slot) => {
 
       currentObject = object;
       wireMaterials = stats.wireMaterials;
+      explosionParts = nextExplosionParts;
+      explosionDistance = radius * PART_EXPLOSION_DISTANCE_SCALE;
       scene.add(object);
 
       camera.near = Math.max(radius / 100, 0.001);
-      camera.far = radius * 30;
+      camera.far = radius * 50;
       camera.position.set(radius * 2.55, radius * 1.25, radius * 2.85);
       camera.updateProjectionMatrix();
 
       controls.target.set(0, 0, 0);
       controls.minDistance = radius * 1.25;
-      controls.maxDistance = radius * 8;
+      controls.maxDistance = radius * 12;
       controls.update();
+      cameraReady = true;
+      appliedCameraExplosion = 0;
+      setExplosion(currentExplosion);
 
       if (faces) faces.textContent = formatCount(stats.faces);
       if (vertices) vertices.textContent = formatCount(stats.vertices);
@@ -756,7 +821,7 @@ const createGlbViewer = (container, slot) => {
     controls.autoRotate = !event.matches;
   });
 
-  return { update };
+  return { update, setExplosion };
 };
 
 const createEditViewer = (container) => {
@@ -1066,10 +1131,27 @@ const initializePartwiseGeneration = async () => {
   const counter = group.querySelector("[data-viewer-counter]");
   const status = group.querySelector("[data-viewer-status]");
   const badge = slot.querySelector(".viewer-badge");
+  const explosionInput = slot.querySelector("[data-part-explode]");
+  const explosionValue = slot.querySelector("[data-part-explode-value]");
   let currentResult = 0;
 
   previousButton.disabled = true;
   nextButton.disabled = true;
+  explosionInput.disabled = true;
+
+  const setExplosionValue = (value) => {
+    const percentage = THREE.MathUtils.clamp(Math.round(Number(value) || 0), 0, 100);
+
+    explosionInput.value = String(percentage);
+    explosionInput.style.setProperty("--explode-progress", `${percentage}%`);
+    explosionInput.setAttribute("aria-valuetext", `${percentage}% exploded`);
+    explosionValue.textContent = `${percentage}%`;
+    viewer.setExplosion(percentage / 100);
+  };
+
+  explosionInput.addEventListener("input", () => {
+    setExplosionValue(explosionInput.value);
+  });
 
   const meshItems = await loadMultiMeshItems(group);
 
@@ -1083,6 +1165,7 @@ const initializePartwiseGeneration = async () => {
   group.dataset.setCount = String(meshItems.length);
   previousButton.disabled = meshItems.length < 2;
   nextButton.disabled = meshItems.length < 2;
+  explosionInput.disabled = false;
 
   const renderResult = () => {
     const item = meshItems[currentResult];
@@ -1091,6 +1174,7 @@ const initializePartwiseGeneration = async () => {
     counter.textContent = `Result ${resultNumber} / ${formatIndex(meshItems.length)}`;
     group.dataset.currentSet = String(currentResult + 1);
     badge.textContent = `Result ${resultNumber}`;
+    setExplosionValue(0);
     viewer.update(item);
     status.textContent = `Part-wise generation result ${currentResult + 1} of ${meshItems.length} displayed.`;
   };
