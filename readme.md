@@ -28,6 +28,7 @@
 
 <div align="center">
 
+[![🏠 Project Page](https://img.shields.io/badge/Project-Page-blue)](https://lohhhha.github.io/LATO.2/)
 [![📄 Paper](https://img.shields.io/badge/Paper-arXiv-green)](https://arxiv.org/abs/2607.10623)
 [![🤗 Model](https://img.shields.io/badge/Model-Hugging%20Face-yellow)](https://huggingface.co/0x4c48/LATO.2)
 
@@ -125,7 +126,8 @@ Second stage only — generates connectivity for the input vertices, conditioned
 python scripts/tflow_inference.py \
   --mesh_dir <dir> \
   --out_dir outputs/tflow_run/<dir> \
-  [--steps 50]
+  [--batch_size 4] \
+  [--no-use_cond]
 ```
 
 ### Controlling the vertex count
@@ -157,10 +159,13 @@ Our work builds upon these excellent repositories:
 ## Citation
 
 ```bibtex
-@article{long2026lato,
-  title={LATO.2: Factorized 3D Mesh Generation with Vertex and Topology Flow},
-  author={Long, Hang and Zhao, Tianhao and Lin, Junkai and Zhang, Youjia and Guo, Huipeng and Liang, Rendong and Xu, Jiale and Hladk{\`y}, Jozef and Nie{\ss}ner, Matthias and Yang, Wei},
-  journal={arXiv preprint arXiv:2607.10623},
-  year={2026}
+@misc{long2026lato2factorized3dmesh,
+      title={LATO.2: Factorized 3D Mesh Generation with Vertex and Topology Flow}, 
+      author={Hang Long and Tianhao Zhao and Junkai Lin and Youjia Zhang and Huipeng Guo and Rendong Liang and Jiale Xu and Jozef Hladký and Matthias Nießner and Yuanming Hu and Wei Yang},
+      year={2026},
+      eprint={2607.10623},
+      archivePrefix={arXiv},
+      primaryClass={cs.GR},
+      url={https://arxiv.org/abs/2607.10623}, 
 }
 ```
