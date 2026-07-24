@@ -1,0 +1,1 @@
+Project page for **LATO.2: Factorized 3D Mesh Generation with Vertex and Topology Flow**.

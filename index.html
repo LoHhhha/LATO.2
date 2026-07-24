@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="LATO.2 factorizes explicit 3D mesh generation into vertex flow and topology flow for controllable, topology-aware synthesis.">
+  <meta name="keywords" content="LATO.2, 3D mesh generation, flow matching, topology, vertex flow, topology flow">
+  <meta name="theme-color" content="#ffffff">
+  <title>LATO.2 | Factorized 3D Mesh Generation</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="site-header__logo" href="#top" aria-label="LATO.2 home">LATO<span>.2</span></a>
+      <button class="site-header__toggle" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Open navigation menu">
+        <span></span><span></span><span></span>
+      </button>
+      <nav class="site-header__nav" id="site-nav" aria-label="Page sections">
+        <a href="#abstract">Abstract</a>
+        <a href="#idea">Core Idea</a>
+        <a href="#method">Method</a>
+        <a href="#generation">Generation</a>
+        <a href="#partwise">Part-wise</a>
+        <a href="#editing">Editing</a>
+        <a href="#comparison">Comparison</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero" id="top">
+      <div class="container">
+        <div class="hero__copy">
+          <h1 class="hero__title"><span class="hero__title-mark">LATO.2</span>: Factorized 3D Mesh Generation with Vertex and Topology Flow</h1>
+          <p class="hero__authors">
+            <span class="author-line"><strong>Hang Long</strong><sup>1,2,*</sup>, <strong>Tianhao Zhao</strong><sup>1,2,*</sup>, Junkai Lin<sup>1,2</sup>, Youjia Zhang<sup>1,2</sup>, Huipeng Guo<sup>1</sup>,</span>
+            <span class="author-line">Rendong Liang<sup>2</sup>, Jiale Xu<sup>2</sup>, Jozef Hladký<sup>3</sup>, Matthias Nießner<sup>4</sup>, Yuanming Hu<sup>2</sup>, Wei Yang<sup>1,†</sup></span>
+          </p>
+          <p class="hero__affil">
+            <span><sup>1</sup>Huazhong University of Science and Technology · <sup>2</sup>Meshy AI</span>
+            <span><sup>3</sup>Independent Researcher · <sup>4</sup>Technical University of Munich</span>
+          </p>
+          <p class="hero__notes">
+            <span><sup>*</sup> Equal contribution &nbsp;·&nbsp; <sup>†</sup> Corresponding author</span>
+            <span><em>This work was completed during internships at Meshy AI.</em></span>
+          </p>
+
+          <div class="actions">
+            <a class="actions__btn" href="https://arxiv.org/abs/2607.10623" target="_blank" rel="noopener"><i class="fa-solid fa-file-lines" aria-hidden="true"></i> arXiv</a>
+            <a class="actions__btn" href="https://github.com/LoHhhha/LATO.2" target="_blank" rel="noopener"><i class="fa-solid fa-code" aria-hidden="true"></i> Code</a>
+            <a class="actions__btn" href="https://huggingface.co/0x4c48/LATO.2" target="_blank" rel="noopener"><i class="fa-solid fa-database" aria-hidden="true"></i> Weights</a>
+            <a class="actions__btn" href="#generation"><i class="fa-solid fa-cube" aria-hidden="true"></i> Results</a>
+          </div>
+
+          <div class="hero__facts" aria-label="Key facts">
+            <div class="hero__fact">
+              <strong>V-Flow → T-Flow</strong>
+              <span>Factorized generation</span>
+            </div>
+            <div class="hero__fact">
+              <strong>Controllable N</strong>
+              <span>Vertex budget</span>
+            </div>
+            <div class="hero__fact">
+              <strong>≈ 5s + 5s</strong>
+              <span>Two-stage sampling</span>
+            </div>
+          </div>
+        </div>
+
+        <figure class="hero__teaser">
+          <img src="assets/images/teaser-web.jpg" width="2400" height="1405" alt="LATO.2 vertex flow, topology flow, mesh generation, multi-part generation, and topology-adaptive editing overview" fetchpriority="high">
+          <figcaption class="hero__caption">
+            <strong>LATO.2 overview.</strong> V-Flow generates vertex positions under a controllable vertex count, while T-Flow predicts connectivity from the realized vertices. The factorization supports high-quality generation, scalable part-wise synthesis, and topology-adaptive editing.
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="section" id="abstract">
+      <div class="container narrow">
+        <header class="section__head section__head--center">
+          <h2 class="section__title">Abstract</h2>
+        </header>
+        <div class="prose">
+          <p>
+            Flow matching over carefully designed latent representations has recently emerged as a powerful paradigm for topology-aware mesh generation. Existing approaches, however, model vertices and connectivity jointly in a shared latent space, entangling continuous vertex geometry with discrete combinatorial structure. This complicates flow learning and manifests as drifting vertices and broken surfaces.
+          </p>
+          <p>
+            We present <span class="term">LATO.2</span>, a factorized flow matching framework that decomposes mesh generation into a <span class="term">vertex flow</span> followed by a <span class="term">connectivity flow conditioned on realized vertices</span>, with both stages anchored to a shared coarse voxel scaffold. Dedicated VAEs recover vertices at sub-voxel precision and embed discrete connectivity into a continuous latent space.
+          </p>
+          <p>
+            This factorization uniquely enables <span class="key-sentence">part-wise high-resolution generation</span> and <span class="key-sentence">topology-adaptive editing</span>. Experiments show that LATO.2 surpasses state-of-the-art topology-aware mesh generators in geometric fidelity and connectivity quality.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--muted" id="idea">
+      <div class="container">
+        <header class="section__head section__head--center">
+          <p class="section__eyebrow">Core Idea</p>
+          <h2 class="section__title">Separate what the mesh is from how it connects</h2>
+          <p class="section__sub">Vertex positions are continuous geometry. Connectivity is a relational structure over vertices that already exist. LATO.2 gives each signal its own latent space and flow.</p>
+        </header>
+
+        <div class="factorization">
+          <article class="factor-card factor-card--vertex">
+            <span class="factor-card__label">Stage 01 · Geometry</span>
+            <h3>Vertex Flow</h3>
+            <p>Generate a structured vertex latent on a shared voxel scaffold, then decode a controllable number of high-resolution vertices with learned sub-voxel offsets.</p>
+          </article>
+          <div class="factorization__arrow" aria-hidden="true">→</div>
+          <article class="factor-card factor-card--topology">
+            <span class="factor-card__label">Stage 02 · Connectivity</span>
+            <h3>Topology Flow</h3>
+            <p>Condition on the realized vertices, sample per-vertex topology features, and decode symmetric pairwise edge probabilities before recovering faces.</p>
+          </article>
+        </div>
+
+        <div class="equation-card" aria-label="Mesh distribution factorization">
+          p(V, E | c) = p(V | c) · p(E | V, c)
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="method">
+      <div class="container">
+        <header class="section__head section__head--center">
+          <p class="section__eyebrow">Pipeline</p>
+          <h2 class="section__title">Factorized Mesh Generation</h2>
+          <p class="section__sub">V-VAE recovers precise geometry with sub-voxel offsets, T-VAE maps discrete connectivity into a continuous latent space, and V-Flow and T-Flow generate the two factors in sequence.</p>
+        </header>
+
+        <figure class="figure">
+          <img src="assets/images/pipeline.png" width="1740" height="878" alt="LATO.2 V-VAE, T-VAE, V-Flow and T-Flow pipeline" loading="lazy">
+          <figcaption>
+            <strong>Overview of LATO.2 pipeline.</strong> LATO.2 factorizes explicit mesh generation into vertex and topology synthesis. V-VAE learns sparse vertex latents and reconstructs high-resolution vertex positions with sub-voxel offsets, while T-VAE learns topology latents through vertex-aware attention. At inference, V-Flow generates vertices conditioned on images with controllable vertex counts, and T-Flow predicts connectivity conditioned on the generated vertices.
+          </figcaption>
+        </figure>
+
+        <div class="method-flow">
+          <article class="method-step">
+            <span class="method-step__number">01</span>
+            <h3>
+              <span class="method-step__name">V-VAE</span>
+              <span class="method-step__subtitle">Sub-voxel offsets</span>
+            </h3>
+            <p>Progressive sparse decoding predicts an offset from each surviving voxel center, recovering precise vertex positions while reducing quantization error.</p>
+          </article>
+          <article class="method-step">
+            <span class="method-step__number">02</span>
+            <h3>
+              <span class="method-step__name">T-VAE</span>
+              <span class="method-step__subtitle">Continuous topology latent</span>
+            </h3>
+            <p>T-VAE encodes the discrete adjacency relations into continuous per-vertex topology latents that can be decoded back into pairwise connectivity.</p>
+          </article>
+          <article class="method-step">
+            <span class="method-step__number">03</span>
+            <h3>
+              <span class="method-step__name">V-Flow</span>
+              <span class="method-step__subtitle">Generate vertices</span>
+            </h3>
+            <p>The target vertex count is injected into V-Flow together with visual features, guiding the vertex latent that V-VAE decodes into the realized vertex set.</p>
+          </article>
+          <article class="method-step">
+            <span class="method-step__number">04</span>
+            <h3>
+              <span class="method-step__name">T-Flow</span>
+              <span class="method-step__subtitle">Generate connectivity</span>
+            </h3>
+            <p>Conditioned on the realized vertices, T-Flow samples the topology latent; T-VAE then decodes pairwise connectivity and face loops recover the mesh.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--muted" id="generation">
+      <div class="container">
+        <header class="section__head section__head--center">
+          <p class="section__eyebrow">Generation Result</p>
+          <h2 class="section__title">One-pass Mesh Generation</h2>
+          <p class="section__sub">V-Flow first generates the vertex set, and T-Flow then predicts connectivity conditioned on the realized vertices to form the final mesh.</p>
+        </header>
+
+        <div class="viewer-group viewer-group--obj" data-viewer-group data-mesh-viewer-group data-single-viewer-group data-set-count="1" data-current-set="1">
+          <div class="viewer-switcher" aria-label="Switch generation result set">
+            <button class="viewer-switcher__btn" type="button" data-viewer-prev aria-label="Show previous generation result set">
+              <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+            </button>
+            <span class="viewer-switcher__counter" data-viewer-counter>Set 01 / 01</span>
+            <button class="viewer-switcher__btn" type="button" data-viewer-next aria-label="Show next generation result set">
+              <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+            </button>
+            <span class="sr-only" data-viewer-status aria-live="polite"></span>
+          </div>
+
+          <div class="viewer-grid viewer-grid--triple">
+            <article class="viewer-card viewer-card--stacked" data-viewer-slot>
+              <div class="mesh-viewer" data-obj-viewer data-obj-path="assets/meshes/single/1(162)_pred.obj" role="img" aria-label="Interactive viewer for generated mesh OBJ 1">
+                <span class="viewer-badge">OBJ 01</span>
+                <span class="mesh-viewer__loading">Loading mesh</span>
+                <span class="viewer-hint">drag to rotate · scroll to zoom</span>
+              </div>
+              <div class="viewer-card__copy viewer-card__copy--stats">
+                <div class="mesh-stats" aria-label="Mesh statistics">
+                  <div class="mesh-stat">
+                    <span>Faces</span>
+                    <strong data-mesh-faces>—</strong>
+                  </div>
+                  <div class="mesh-stat">
+                    <span>Vertices</span>
+                    <strong data-mesh-vertices>—</strong>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="viewer-card viewer-card--stacked" data-viewer-slot>
+              <div class="mesh-viewer" data-obj-viewer data-obj-path="assets/meshes/single/1(223)_pred.obj" role="img" aria-label="Interactive viewer for generated mesh OBJ 2">
+                <span class="viewer-badge">OBJ 02</span>
+                <span class="mesh-viewer__loading">Loading mesh</span>
+                <span class="viewer-hint">drag to rotate · scroll to zoom</span>
+              </div>
+              <div class="viewer-card__copy viewer-card__copy--stats">
+                <div class="mesh-stats" aria-label="Mesh statistics">
+                  <div class="mesh-stat">
+                    <span>Faces</span>
+                    <strong data-mesh-faces>—</strong>
+                  </div>
+                  <div class="mesh-stat">
+                    <span>Vertices</span>
+                    <strong data-mesh-vertices>—</strong>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="viewer-card viewer-card--stacked" data-viewer-slot>
+              <div class="mesh-viewer" data-obj-viewer data-obj-path="assets/meshes/single/1(323)_pred.obj" role="img" aria-label="Interactive viewer for generated mesh OBJ 3">
+                <span class="viewer-badge">OBJ 03</span>
+                <span class="mesh-viewer__loading">Loading mesh</span>
+                <span class="viewer-hint">drag to rotate · scroll to zoom</span>
+              </div>
+              <div class="viewer-card__copy viewer-card__copy--stats">
+                <div class="mesh-stats" aria-label="Mesh statistics">
+                  <div class="mesh-stat">
+                    <span>Faces</span>
+                    <strong data-mesh-faces>—</strong>
+                  </div>
+                  <div class="mesh-stat">
+                    <span>Vertices</span>
+                    <strong data-mesh-vertices>—</strong>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <div class="showcase-subsection">
+          <header class="section__head section__head--center">
+            <h2 class="section__title">Controllable Mesh Complexity</h2>
+            <p class="section__sub">By injecting different target vertex counts into V-Flow under the same generation condition, LATO.2 produces meshes with controllable mesh complexity.</p>
+          </header>
+
+          <div class="viewer-group" data-viewer-group data-mesh-viewer-group data-mesh-complexity-viewer-group data-set-count="1" data-current-set="1">
+            <div class="viewer-switcher" aria-label="Switch mesh-complexity result page">
+              <button class="viewer-switcher__btn" type="button" data-viewer-prev aria-label="Show previous mesh-complexity result page">
+                <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+              </button>
+              <span class="viewer-switcher__counter" data-viewer-counter>Page 01 / 01</span>
+              <button class="viewer-switcher__btn" type="button" data-viewer-next aria-label="Show next mesh-complexity result page">
+                <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+              </button>
+              <span class="sr-only" data-viewer-status aria-live="polite"></span>
+            </div>
+
+            <div class="viewer-grid viewer-grid--six">
+              <article class="viewer-card viewer-card--stacked viewer-card--density" data-viewer-slot>
+                <div class="mesh-viewer mesh-viewer--density" data-mesh-complexity-viewer data-budget="200" data-obj-path="assets/meshes/control/1(178)_pred_200.obj" role="img" aria-label="Interactive viewer for mesh generated with a target budget of 200 vertices">
+                  <span class="viewer-badge">200 vertices</span>
+                  <span class="mesh-viewer__loading">Loading mesh</span>
+                  <span class="viewer-hint">drag to rotate · scroll to zoom</span>
+                </div>
+                <div class="viewer-card__copy">
+                  <p>Actual vertices: <strong data-actual-vertices>—</strong></p>
+                </div>
+              </article>
+
+              <article class="viewer-card viewer-card--stacked viewer-card--density" data-viewer-slot>
+                <div class="mesh-viewer mesh-viewer--density" data-mesh-complexity-viewer data-budget="500" data-obj-path="assets/meshes/control/1(178)_pred_500.obj" role="img" aria-label="Interactive viewer for mesh generated with a target budget of 500 vertices">
+                  <span class="viewer-badge">500 vertices</span>
+                  <span class="mesh-viewer__loading">Loading mesh</span>
+                  <span class="viewer-hint">drag to rotate · scroll to zoom</span>
+                </div>
+                <div class="viewer-card__copy">
+                  <p>Actual vertices: <strong data-actual-vertices>—</strong></p>
+                </div>
+              </article>
+
+              <article class="viewer-card viewer-card--stacked viewer-card--density" data-viewer-slot>
+                <div class="mesh-viewer mesh-viewer--density" data-mesh-complexity-viewer data-budget="1000" data-obj-path="assets/meshes/control/1(178)_pred_1000.obj" role="img" aria-label="Interactive viewer for mesh generated with a target budget of 1,000 vertices">
+                  <span class="viewer-badge">1,000 vertices</span>
+                  <span class="mesh-viewer__loading">Loading mesh</span>
+                  <span class="viewer-hint">drag to rotate · scroll to zoom</span>
+                </div>
+                <div class="viewer-card__copy">
+                  <p>Actual vertices: <strong data-actual-vertices>—</strong></p>
+                </div>
+              </article>
+
+              <article class="viewer-card viewer-card--stacked viewer-card--density" data-viewer-slot>
+                <div class="mesh-viewer mesh-viewer--density" data-mesh-complexity-viewer data-budget="2000" data-obj-path="assets/meshes/control/1(178)_pred_2000.obj" role="img" aria-label="Interactive viewer for mesh generated with a target budget of 2,000 vertices">
+                  <span class="viewer-badge">2,000 vertices</span>
+                  <span class="mesh-viewer__loading">Loading mesh</span>
+                  <span class="viewer-hint">drag to rotate · scroll to zoom</span>
+                </div>
+                <div class="viewer-card__copy">
+                  <p>Actual vertices: <strong data-actual-vertices>—</strong></p>
+                </div>
+              </article>
+
+              <article class="viewer-card viewer-card--stacked viewer-card--density" data-viewer-slot>
+                <div class="mesh-viewer mesh-viewer--density" data-mesh-complexity-viewer data-budget="3000" data-obj-path="assets/meshes/control/1(178)_pred_3000.obj" role="img" aria-label="Interactive viewer for mesh generated with a target budget of 3,000 vertices">
+                  <span class="viewer-badge">3,000 vertices</span>
+                  <span class="mesh-viewer__loading">Loading mesh</span>
+                  <span class="viewer-hint">drag to rotate · scroll to zoom</span>
+                </div>
+                <div class="viewer-card__copy">
+                  <p>Actual vertices: <strong data-actual-vertices>—</strong></p>
+                </div>
+              </article>
+
+              <article class="viewer-card viewer-card--stacked viewer-card--density" data-viewer-slot>
+                <div class="mesh-viewer mesh-viewer--density" data-mesh-complexity-viewer data-budget="4000" data-obj-path="assets/meshes/control/1(178)_pred_4000.obj" role="img" aria-label="Interactive viewer for mesh generated with a target budget of 4,000 vertices">
+                  <span class="viewer-badge">4,000 vertices</span>
+                  <span class="mesh-viewer__loading">Loading mesh</span>
+                  <span class="viewer-hint">drag to rotate · scroll to zoom</span>
+                </div>
+                <div class="viewer-card__copy">
+                  <p>Actual vertices: <strong data-actual-vertices>—</strong></p>
+                </div>
+              </article>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="partwise">
+      <div class="container">
+        <header class="section__head section__head--center">
+          <p class="section__eyebrow">Application 01</p>
+          <h2 class="section__title">Part-wise Generation &amp; Refinement</h2>
+          <p class="section__sub">Each part uses the full latent capacity before T-Flow reconnects the recomposed vertex set, enabling substantially higher mesh resolution.</p>
+        </header>
+
+        <figure class="figure">
+          <img src="assets/images/mpg_pipeline.png" width="2400" height="509" alt="LATO.2 part-wise generation pipeline with controllable structure planning and independent part generation" loading="lazy">
+          <figcaption>
+            <strong>Part-wise generation pipeline.</strong> A controllable planner introduces part-level boxes, each part uses the full latent capacity for vertex generation, and T-Flow predicts coherent connectivity over the recomposed vertex set.
+          </figcaption>
+        </figure>
+
+        <div class="application-section-layout">
+          <article class="application-card">
+            <span class="application-card__tag">How it works</span>
+            <h3>Resolution scales with parts</h3>
+            <p>The coarse structure is partitioned and each part is normalized to occupy the complete latent volume. V-Flow generates every part at full capacity, then the vertices are transformed back and connected by T-Flow. The result is denser and more detailed than monolithic generation at the same latent resolution.</p>
+          </article>
+          <div class="viewer-group viewer-group--application" data-viewer-group data-mesh-viewer-group data-multi-viewer-group data-set-count="1" data-current-set="1">
+            <div class="viewer-switcher viewer-switcher--compact" aria-label="Switch part-wise generation result">
+              <button class="viewer-switcher__btn" type="button" data-viewer-prev aria-label="Show previous part-wise generation result">
+                <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+              </button>
+              <span class="viewer-switcher__counter" data-viewer-counter>Result 01 / 01</span>
+              <button class="viewer-switcher__btn" type="button" data-viewer-next aria-label="Show next part-wise generation result">
+                <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+              </button>
+              <span class="sr-only" data-viewer-status aria-live="polite"></span>
+            </div>
+            <article class="viewer-card" data-viewer-slot>
+              <div class="mesh-viewer" data-multi-viewer data-glb-path="assets/meshes/multi/robot.glb" role="img" aria-label="Interactive viewer for part-wise generated mesh result 1">
+                <span class="viewer-badge">Result 01</span>
+                <span class="mesh-viewer__loading">Loading mesh</span>
+                <span class="viewer-hint">drag to rotate · scroll to zoom</span>
+              </div>
+              <div class="viewer-card__copy viewer-card__copy--stats">
+                <div class="mesh-stats mesh-stats--three" aria-label="Part-wise mesh statistics">
+                  <div class="mesh-stat">
+                    <span>Faces</span>
+                    <strong data-mesh-faces>—</strong>
+                  </div>
+                  <div class="mesh-stat">
+                    <span>Vertices</span>
+                    <strong data-mesh-vertices>—</strong>
+                  </div>
+                  <div class="mesh-stat">
+                    <span>Parts</span>
+                    <strong data-mesh-parts>—</strong>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--muted" id="editing">
+      <div class="container">
+        <header class="section__head section__head--center">
+          <p class="section__eyebrow">Application 02</p>
+          <h2 class="section__title">Topology-adaptive Mesh Editing</h2>
+          <p class="section__sub">Edited or recomposed vertices are passed back to T-Flow so connectivity can adapt without hand-authored topology operations.</p>
+        </header>
+
+        <div class="application-section-layout">
+          <article class="application-card">
+            <span class="application-card__tag">How it works</span>
+            <h3>Edit vertices, regenerate connectivity</h3>
+            <p>Users can stitch vertex sets from different meshes or rotate and translate a local part. T-Flow regenerates connectivity around the affected regions, bridging new junctions while avoiding stretched faces and self-intersections. No mesh-specific re-optimization is required.</p>
+            <div class="application-card__result">
+              <span>Editing</span>
+              <strong data-edit-set-name>-</strong>
+            </div>
+          </article>
+          <div class="viewer-group viewer-group--application" data-viewer-group data-mesh-viewer-group data-edit-viewer-group data-set-count="1" data-current-set="1">
+            <div class="viewer-switcher viewer-switcher--compact" aria-label="Switch topology-adaptive editing result">
+              <button class="viewer-switcher__btn" type="button" data-viewer-prev aria-label="Show previous topology-adaptive editing result">
+                <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+              </button>
+              <span class="viewer-switcher__counter" data-viewer-counter>Result 01 / 01</span>
+              <button class="viewer-switcher__btn" type="button" data-viewer-next aria-label="Show next topology-adaptive editing result">
+                <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+              </button>
+              <span class="sr-only" data-viewer-status aria-live="polite"></span>
+            </div>
+            <div class="viewer-grid viewer-grid--quad">
+              <article class="viewer-card viewer-card--stacked viewer-card--editing" data-viewer-slot>
+                <div class="mesh-viewer" data-edit-viewer data-edit-path="assets/meshes/edit/human.obj" data-edit-type="mesh" data-edit-name="Original" role="img" aria-label="Interactive viewer for Original">
+                  <span class="viewer-badge">Mesh</span>
+                  <span class="mesh-viewer__loading">Loading mesh</span>
+                  <span class="viewer-hint">drag to rotate · scroll to zoom</span>
+                </div>
+                <div class="viewer-card__copy">
+                  <h3 data-edit-label>Original</h3>
+                </div>
+              </article>
+
+              <article class="viewer-card viewer-card--stacked viewer-card--editing" data-viewer-slot>
+                <div class="mesh-viewer" data-edit-viewer data-edit-path="assets/meshes/edit/human.ply" data-edit-type="vertex" data-edit-name="Original Vertices" role="img" aria-label="Interactive viewer for Original Vertices">
+                  <span class="viewer-badge">Vertices</span>
+                  <span class="mesh-viewer__loading">Loading mesh</span>
+                  <span class="viewer-hint">drag to rotate · scroll to zoom</span>
+                </div>
+                <div class="viewer-card__copy">
+                  <h3 data-edit-label>Original Vertices</h3>
+                </div>
+              </article>
+
+              <article class="viewer-card viewer-card--stacked viewer-card--editing" data-viewer-slot>
+                <div class="mesh-viewer" data-edit-viewer data-edit-path="assets/meshes/edit/human_add.ply" data-edit-type="vertex" data-edit-name="Edited Vertices" role="img" aria-label="Interactive viewer for Edited Vertices">
+                  <span class="viewer-badge">Vertices</span>
+                  <span class="mesh-viewer__loading">Loading mesh</span>
+                  <span class="viewer-hint">drag to rotate · scroll to zoom</span>
+                </div>
+                <div class="viewer-card__copy">
+                  <h3 data-edit-label>Edited Vertices</h3>
+                </div>
+              </article>
+
+              <article class="viewer-card viewer-card--stacked viewer-card--editing" data-viewer-slot>
+                <div class="mesh-viewer" data-edit-viewer data-edit-path="assets/meshes/edit/human_add.obj" data-edit-type="mesh" data-edit-name="Edited" role="img" aria-label="Interactive viewer for Edited">
+                  <span class="viewer-badge">Mesh</span>
+                  <span class="mesh-viewer__loading">Loading mesh</span>
+                  <span class="viewer-hint">drag to rotate · scroll to zoom</span>
+                </div>
+                <div class="viewer-card__copy">
+                  <h3 data-edit-label>Edited</h3>
+                </div>
+              </article>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="comparison">
+      <div class="container">
+        <header class="section__head section__head--center">
+          <p class="section__eyebrow">Comparison</p>
+          <h2 class="section__title">Stronger geometry and cleaner connectivity</h2>
+          <p class="section__sub">On geometry-conditioned mesh generation, LATO.2 achieves the strongest performance across all reported surface metrics.</p>
+        </header>
+
+        <figure class="figure">
+          <img src="assets/images/cmp.png" width="2200" height="1353" alt="Qualitative comparison of LATO.2 against autoregressive and flow matching mesh generation methods" loading="lazy">
+          <figcaption>
+            <strong>Qualitative comparison.</strong> Autoregressive and previous flow-based methods may introduce missing regions, broken surfaces, or coarse connectivity. LATO.2 preserves fine structures while producing more complete, coherent meshes.
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="section section--muted" id="citation">
+      <div class="container narrow">
+        <header class="section__head section__head--center">
+          <p class="section__eyebrow">Reference</p>
+          <h2 class="section__title">Citation</h2>
+        </header>
+
+        <div class="citation-card">
+          <button class="copy-btn" type="button" data-copy-citation>Copy</button>
+          <pre id="bibtex">@misc{long2026lato2factorized3dmesh,
+      title={LATO.2: Factorized 3D Mesh Generation with Vertex and Topology Flow}, 
+      author={Hang Long and Tianhao Zhao and Junkai Lin and Youjia Zhang and Huipeng Guo and Rendong Liang and Jiale Xu and Jozef Hladký and Matthias Nießner and Yuanming Hu and Wei Yang},
+      year={2026},
+      eprint={2607.10623},
+      archivePrefix={arXiv},
+      primaryClass={cs.GR},
+      url={https://arxiv.org/abs/2607.10623}, 
+}</pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container site-footer__inner">
+      <p><strong>LATO.2</strong> · Factorized 3D Mesh Generation</p>
+      <p>Research project page</p>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module" src="assets/js/mesh-viewer.js"></script>
+</body>
+</html>

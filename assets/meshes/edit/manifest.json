@@ -1,0 +1,54 @@
+{
+  "sets": [
+    {
+      "name": "Addition / Stitching",
+      "meshes": [
+        {
+          "name": "Original Mesh",
+          "type": "mesh",
+          "file": "human.obj"
+        },
+        {
+          "name": "Original Vertex",
+          "type": "vertex",
+          "file": "human.ply"
+        },
+        {
+          "name": "Edited Vertices",
+          "type": "vertex",
+          "file": "human_add.ply"
+        },
+        {
+          "name": "Generation",
+          "type": "mesh",
+          "file": "human_add.obj"
+        }
+      ]
+    },
+    {
+      "name": "Rotation",
+      "meshes": [
+        {
+          "name": "Original Mesh",
+          "type": "mesh",
+          "file": "fan_original.obj"
+        },
+        {
+          "name": "Direct Rotation",
+          "type": "mesh",
+          "file": "fan_rot.obj"
+        },
+        {
+          "name": "Vertex Rotation",
+          "type": "vertex",
+          "file": "fan_rot.ply"
+        },
+        {
+          "name": "Generation",
+          "type": "mesh",
+          "file": "fan.obj"
+        }
+      ]
+    }
+  ]
+}

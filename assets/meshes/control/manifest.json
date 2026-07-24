@@ -1,0 +1,149 @@
+{
+  "sets": [
+    {
+      "name": "1(96)",
+      "meshes": [
+        {
+          "budget": 200,
+          "file": "1(96)_pred_200.obj"
+        },
+        {
+          "budget": 500,
+          "file": "1(96)_pred_500.obj"
+        },
+        {
+          "budget": 1000,
+          "file": "1(96)_pred_1000.obj"
+        },
+        {
+          "budget": 2000,
+          "file": "1(96)_pred_2000.obj"
+        },
+        {
+          "budget": 3000,
+          "file": "1(96)_pred_3000.obj"
+        },
+        {
+          "budget": 4000,
+          "file": "1(96)_pred_4000.obj"
+        }
+      ]
+    },
+    {
+      "name": "1(170)",
+      "meshes": [
+        {
+          "budget": 200,
+          "file": "1(170)_pred_200.obj"
+        },
+        {
+          "budget": 500,
+          "file": "1(170)_pred_500.obj"
+        },
+        {
+          "budget": 1000,
+          "file": "1(170)_pred_1000.obj"
+        },
+        {
+          "budget": 2000,
+          "file": "1(170)_pred_2000.obj"
+        },
+        {
+          "budget": 3000,
+          "file": "1(170)_pred_3000.obj"
+        },
+        {
+          "budget": 4000,
+          "file": "1(170)_pred_4000.obj"
+        }
+      ]
+    },
+    {
+      "name": "1(178)",
+      "meshes": [
+        {
+          "budget": 200,
+          "file": "1(178)_pred_200.obj"
+        },
+        {
+          "budget": 500,
+          "file": "1(178)_pred_500.obj"
+        },
+        {
+          "budget": 1000,
+          "file": "1(178)_pred_1000.obj"
+        },
+        {
+          "budget": 2000,
+          "file": "1(178)_pred_2000.obj"
+        },
+        {
+          "budget": 3000,
+          "file": "1(178)_pred_3000.obj"
+        },
+        {
+          "budget": 4000,
+          "file": "1(178)_pred_4000.obj"
+        }
+      ]
+    },
+    {
+      "name": "1(415)",
+      "meshes": [
+        {
+          "budget": 200,
+          "file": "1(415)_pred_200.obj"
+        },
+        {
+          "budget": 500,
+          "file": "1(415)_pred_500.obj"
+        },
+        {
+          "budget": 1000,
+          "file": "1(415)_pred_1000.obj"
+        },
+        {
+          "budget": 2000,
+          "file": "1(415)_pred_2000.obj"
+        },
+        {
+          "budget": 3000,
+          "file": "1(415)_pred_3000.obj"
+        },
+        {
+          "budget": 4000,
+          "file": "1(415)_pred_4000.obj"
+        }
+      ]
+    },
+    {
+      "name": "1(488)",
+      "meshes": [
+        {
+          "budget": 200,
+          "file": "1(488)_pred_200.obj"
+        },
+        {
+          "budget": 500,
+          "file": "1(488)_pred_500.obj"
+        },
+        {
+          "budget": 1000,
+          "file": "1(488)_pred_1000.obj"
+        },
+        {
+          "budget": 2000,
+          "file": "1(488)_pred_2000.obj"
+        },
+        {
+          "budget": 3000,
+          "file": "1(488)_pred_3000.obj"
+        },
+        {
+          "budget": 4000,
+          "file": "1(488)_pred_4000.obj"
+        }
+      ]
+    }
+  ]
+}
