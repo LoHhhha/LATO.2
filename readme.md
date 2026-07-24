@@ -3,11 +3,11 @@
 <h1>LATO.2: Factorized 3D Mesh Generation with Vertex and Topology Flow</h1>
 
 <p>
-  <a href="https://github.com/LoHhhha">Hang Long</a><sup>1,2,*</sup> &nbsp;
+  <a href="https://lohhhha.github.io">Hang Long</a><sup>1,2,*</sup> &nbsp;
   <a href="https://tianhaozhao668.github.io">Tianhao Zhao</a><sup>1,2,*</sup> &nbsp;
-  <a href="https://github.com/MayMhappy">Junkai Lin</a><sup>1,2</sup> &nbsp;
+  <a href="https://maymhappy.github.io">Junkai Lin</a><sup>1,2</sup> &nbsp;
   <a href="https://youjiazhang.github.io">Youjia Zhang</a><sup>1,2</sup> &nbsp;
-  Huipeng Guo<sup>1</sup><br>
+  <a href="https://github.com/Ghuipeng">Huipeng Guo</a><sup>1</sup><br>
   <a href="https://github.com/PENGUINLIONG">Rendong Liang</a><sup>2</sup> &nbsp;
   <a href="https://bluestyle97.github.io">Jiale Xu</a><sup>2</sup> &nbsp;
   Jozef Hladký<sup>3</sup> &nbsp;
