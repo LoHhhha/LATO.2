@@ -250,6 +250,25 @@
       line-height: 1.7;
     }
 
+    .hero__authors a {
+      color: inherit;
+      text-decoration-color: rgba(123, 84, 59, 0.28);
+      text-decoration-thickness: 1px;
+      text-underline-offset: 3px;
+      transition: color 0.16s ease, text-decoration-color 0.16s ease;
+    }
+
+    .hero__authors a:hover {
+      color: var(--accent-dark);
+      text-decoration-color: var(--accent);
+    }
+
+    .hero__authors a:focus-visible {
+      border-radius: 2px;
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+    }
+
     .author-line {
       display: block;
     }
