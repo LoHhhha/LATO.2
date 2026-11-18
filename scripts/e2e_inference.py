@@ -9,7 +9,8 @@ Outputs into --out_dir:
 Usage:
     python scripts/e2e_inference.py --mesh_dir <dir> --out_dir outputs/e2e_run/<dir> \
         [--vert_num 2000] [--cfg_strength 3.0] [--vflow_steps 24] [--tflow_steps 50] \
-        [--render_azimuth 45 --render_elevation 30] [--no-fill_quad_rings]
+        [--render_azimuth 45 --render_elevation 30] \
+        [--no-fill_open_rings] [--max_ring_size 12]
 """
 
 import argparse
@@ -113,13 +114,19 @@ def parse_args():
     p.add_argument("--edge_threshold", type=float, default=0.0)
     p.add_argument("--chunk_size", type=int, default=20000)
     p.add_argument(
-        "--fill_quad_rings",
+        "--fill_open_rings",
         action=argparse.BooleanOptionalAction,
         default=True,
         help=(
-            "post-process: split chordless 4-vertex rings into two triangles "
-            "(pure topology, not the voxel support filter)"
+            "post-process: triangulate chordless rings of open edges (edges with "
+            "fewer than two faces) by minimum area, not the voxel support filter"
         ),
+    )
+    p.add_argument(
+        "--max_ring_size",
+        type=int,
+        default=12,
+        help="largest open-edge ring (in edges) that --fill_open_rings closes",
     )
     # conditioning render
     p.add_argument("--render_azimuth", type=float, default=45.0)
@@ -353,7 +360,13 @@ def main():
 
         for k, b in enumerate(keep_idx):
             name = batch["name"][b]
-            faces = edges_to_faces(edges_list[k], lengths[k], args.fill_quad_rings)
+            faces = edges_to_faces(
+                edges_list[k],
+                lengths[k],
+                verts_list[k].numpy(),
+                fill_open_rings=args.fill_open_rings,
+                max_ring_size=args.max_ring_size,
+            )
             if faces.shape[0] == 0:
                 n_no_topo += 1
                 logging.warning(

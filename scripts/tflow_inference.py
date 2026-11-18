@@ -7,7 +7,7 @@ Outputs into --out_dir:
 
 Usage:
     python scripts/tflow_inference.py --mesh_dir <dir> --out_dir outputs/tflow_run/<dir> \
-        [--steps 50] [--no-use_cond] [--no-fill_quad_rings]
+        [--steps 50] [--no-use_cond] [--no-fill_open_rings] [--max_ring_size 12]
 """
 
 import argparse
@@ -69,13 +69,19 @@ def parse_args():
     p.add_argument("--edge_threshold", type=float, default=0.0)
     p.add_argument("--chunk_size", type=int, default=20000)
     p.add_argument(
-        "--fill_quad_rings",
+        "--fill_open_rings",
         action=argparse.BooleanOptionalAction,
         default=True,
         help=(
-            "post-process: split chordless 4-vertex rings into two triangles "
-            "(pure topology, not the voxel support filter)"
+            "post-process: triangulate chordless rings of open edges (edges with "
+            "fewer than two faces) by minimum area, not the voxel support filter"
         ),
+    )
+    p.add_argument(
+        "--max_ring_size",
+        type=int,
+        default=12,
+        help="largest open-edge ring (in edges) that --fill_open_rings closes",
     )
     p.add_argument(
         "--save_voxel_field",
@@ -186,9 +192,15 @@ def main():
                 logging.warning(f"{name}: no known vertices; skipping.")
                 continue
             edges = edges_list[b]
-            faces = edges_to_faces(edges, num_vertices, args.fill_quad_rings)
-
             verts_int = verts_list[b]
+            faces = edges_to_faces(
+                edges,
+                num_vertices,
+                verts_int.numpy(),
+                fill_open_rings=args.fill_open_rings,
+                max_ring_size=args.max_ring_size,
+            )
+
             disp = (verts_int.numpy().astype(np.float64) + 0.5) / num_discrete - 0.5
 
             if faces.shape[0] > 0:
