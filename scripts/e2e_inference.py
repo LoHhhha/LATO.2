@@ -33,7 +33,6 @@ os.environ.setdefault("EGL_PLATFORM", "surfaceless")
 
 import numpy as np
 import torch
-import trimesh
 from PIL import Image
 from torch.utils.data import DataLoader
 
@@ -51,7 +50,7 @@ from models import (
 )
 from modules.sparse import SparseTensor
 import utils.logging as logging
-from utils.export import export_vertex
+from utils.export import export_mesh, export_vertex
 from utils.inference import (
     build_voxel_fields,
     compute_density,
@@ -141,22 +140,6 @@ def parse_args():
     if args.num_samples is not None and args.num_samples <= 0:
         args.num_samples = None  # <= 0 means "all", not python slice semantics
     return args
-
-
-def export_mesh(out_dir, base_name, vert_int, vert_offsets, faces, resolution):
-    """OBJ pair matching export_vertex's PLY conventions (offset verts / int coords)."""
-    res = float(resolution)
-    vert_with_offset = (
-        vert_int.astype(np.float64) / res
-        - 0.5
-        + vert_offsets.astype(np.float64) / (res * 2.0)
-    )
-    trimesh.Trimesh(vertices=vert_with_offset, faces=faces).export(
-        os.path.join(out_dir, f"{base_name}_pred.obj")
-    )
-    trimesh.Trimesh(vertices=vert_int.astype(np.float64), faces=faces).export(
-        os.path.join(out_dir, f"{base_name}_pred_coords.obj")
-    )
 
 
 def main():

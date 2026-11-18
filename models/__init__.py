@@ -7,3 +7,4 @@ from models.flow_sampler import VertFlowEulerCfgSampler, TopoFlowEulerSampler
 from models.topo_autoencoder import TopologyVAE
 from models.topo_flow import TopologySiTFlow
 from models.voxel_encoder import VoxelFieldConditioner
+from models.background_remover import BackgroundRemover

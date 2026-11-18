@@ -45,6 +45,11 @@
 - **Part-wise generation** (bottom middle).
 - **Topology-adaptive editing** (bottom right).
 
+## News
+
+- **2026.11.19**: Released the image-to-mesh pipeline.
+- **2026.11.18**: Released updated V-Flow and T-Flow weights, further improved with post-training refinement.
+
 ## Installation
 
 1. Clone the repo:
@@ -72,7 +77,7 @@ python scripts/ckpt_download.py
 
 ## Inference
 
-All inference scripts take a directory of input meshes (`--mesh_dir`) and write results to `--out_dir`. Three bundled examples live in [`assets/example_mesh/`](./assets/example_mesh).
+All inference scripts take a directory of input meshes (`--mesh_dir`; `image_e2e_inference.py` takes images via `--image_dir`) and write results to `--out_dir`. Three bundled examples live in [`assets/example_mesh/`](./assets/example_mesh).
 
 ### Quick start
 
@@ -92,6 +97,19 @@ Outputs per mesh: `<id>_pred.obj` (generated mesh), `<id>_pred.ply` (vertices), 
 python scripts/e2e_inference.py \
   --mesh_dir <dir> \
   --out_dir outputs/e2e_run/<dir> \
+  --vert_num <vert_num> \
+  [--batch_size 4]
+```
+
+### Image to mesh (`image_e2e_inference.py`)
+
+Same pipeline, but the coarse voxel scaffold is generated from an image instead of taken from an input mesh: image → [TRELLIS](https://github.com/Microsoft/TRELLIS) sparse-structure stage → V-Flow → T-Flow. 
+Outputs per image: the same meshes / vertices as `e2e_inference.py`, plus `<id>_cond.png` (the conditioning image) and `<id>_ss.ply` (the generated 64³ scaffold).
+
+```bash
+python scripts/image_e2e_inference.py \
+  --image_dir <dir> \
+  --out_dir outputs/image_e2e_run/<dir> \
   --vert_num <vert_num> \
   [--batch_size 4]
 ```
@@ -138,7 +156,7 @@ The V-Flow stage (`e2e_inference.py` / `vflow_inference.py`) generates a control
 - **Fixed target** (default): `--vert_num <N>` (default `2000`).
 - **Scaled from the input**: `--use_gt_vert_count --scaler <s>` uses the input mesh's own vertex count multiplied by `<s>`.
 
-Either way the count is clamped to `[--min_verts, --max_verts]` (defaults `200`–`5000`).
+Either way the count is clamped to `[--min_verts, --max_verts]` (defaults `200`–`5000`). `image_e2e_inference.py` has no input mesh, so it only takes `--vert_num`.
 
 ### Notes
 
@@ -146,7 +164,8 @@ Either way the count is clamped to `[--min_verts, --max_verts]` (defaults `200`�
 > Generated meshes may still contain holes and incorrect connectivity. We believe these artifacts can be largely resolved by scaling up.
 
 - **Hardware**: runs in ~8 GB VRAM; end-to-end generation takes ~5 s per mesh on a single H800.
-- **Image-to-structure**: to obtain the coarse voxel scaffold from a single image (instead of an existing mesh), you can directly reuse [TRELLIS](https://github.com/Microsoft/TRELLIS)'s sparse-structure stage.
+- **Image-to-structure**: `image_e2e_inference.py` obtains the coarse voxel scaffold from a single image (instead of an existing mesh) by reusing [TRELLIS](https://github.com/Microsoft/TRELLIS)'s sparse-structure stage. Swapping in the sparse-structure flow from [TRELLIS.2](https://github.com/microsoft/TRELLIS.2) would give better results, but it depends on DINOv3.
+- **Background removal**: `image_e2e_inference.py` mattes every input image with [BiRefNet](https://github.com/ZhengPeng7/BiRefNet) to extract the foreground.
 
 ## Acknowledgements
 
