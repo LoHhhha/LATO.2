@@ -47,7 +47,7 @@
 
 ## News
 
-- **2026.11.19**: Released the image-to-mesh pipeline.
+- **2026.11.19**: Released the image-to-mesh pipeline. Try image2mesh on our Hugging Face demo!
   ![image2mesh](./assets/image2mesh.png)
 
 - **2026.11.18**: Released updated V-Flow and T-Flow weights, further improved with post-training refinement. The new weights substantially improve topology quality — give them a try!
@@ -88,12 +88,23 @@ All inference scripts take a directory of input meshes (`--mesh_dir`; `image_e2e
 
 ### Quick start
 
-```bash
-python scripts/e2e_inference.py \
-  --mesh_dir assets/example_mesh \
-  --out_dir outputs/e2e_run/example \
-  --vert_num 2000
-```
+- Mesh2Mesh
+
+  ```bash
+  python scripts/e2e_inference.py \
+    --mesh_dir assets/example_mesh \
+    --out_dir outputs/e2e_run/example \
+    --vert_num 2000
+  ```
+
+- Image2Mesh
+
+  ```bash
+  python scripts/image_e2e_inference.py \
+    --image_dir assets/example_image \
+    --out_dir outputs/image_e2e_run/example \
+    --vert_num 2000
+  ```
 
 ### End-to-end (`e2e_inference.py`)
 
