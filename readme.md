@@ -48,7 +48,14 @@
 ## News
 
 - **2026.11.19**: Released the image-to-mesh pipeline.
-- **2026.11.18**: Released updated V-Flow and T-Flow weights, further improved with post-training refinement.
+  ![image2mesh](./assets/image2mesh.png)
+
+- **2026.11.18**: Released updated V-Flow and T-Flow weights, further improved with post-training refinement. The new weights substantially improve topology quality — give them a try!
+
+  | CKPT | \|NC\|↑ | NMER(%)↓ | BER(%)↓ |
+  |-|-|-|-|
+  | v1.0 | 0.8341 | 9.19 | 2.46 |
+  | **v1.0+rl** | **0.8575** | **0.12** | **0.99** |
 
 ## Installation
 
