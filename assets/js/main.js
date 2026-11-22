@@ -42,6 +42,97 @@
         });
       }
 
+      const heroVideo = document.querySelector("[data-hero-video]");
+      const heroStages = document.querySelector("[data-hero-stages]");
+
+      if (heroVideo && heroStages) {
+        // The timeline of the hero video: [start (s), stage, vertex-voxel grid].
+        const heroTimeline = [
+          [0, "structure", "64³"],
+          [1.0, "vertices", "64³"],
+          [2.6, "vertices", "128³"],
+          [3.8, "vertices", "256³"],
+          [5.0, "vertices", "512³"],
+          [6.2, "vertices", "1024³"],
+          [7.6, "edges", "1024³"],
+          [12.8, "mesh", "1024³"],
+          [16.8, "structure", "64³"],
+        ];
+        const posterTime = 14.5;
+        // With motion reduced the video stays paused: a stage is then shown by the frame that completes it.
+        const stageStill = { structure: 0, vertices: 7.5, edges: 12.6, mesh: posterTime };
+        const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const stageItems = [...heroStages.querySelectorAll("[data-stage]")];
+        const levelLabel = heroStages.querySelector("[data-hero-level]");
+        let currentEntry = null;
+        let frameRequest = 0;
+
+        const renderHeroStage = (time) => {
+          let entry = heroTimeline[0];
+          heroTimeline.forEach((candidate) => {
+            if (time >= candidate[0]) entry = candidate;
+          });
+          if (entry === currentEntry) return;
+          currentEntry = entry;
+          stageItems.forEach((item) => {
+            const isActive = item.dataset.stage === entry[1];
+            item.classList.toggle("is-active", isActive);
+            if (isActive) item.setAttribute("aria-current", "step");
+            else item.removeAttribute("aria-current");
+          });
+          if (entry[2]) levelLabel.textContent = entry[2];
+        };
+
+        // During a seek the tracker already shows the stage that was asked for.
+        const syncHeroStage = () => {
+          if (!heroVideo.seeking) renderHeroStage(heroVideo.currentTime);
+        };
+
+        const trackHeroStage = () => {
+          syncHeroStage();
+          frameRequest = heroVideo.paused ? 0 : window.requestAnimationFrame(trackHeroStage);
+        };
+
+        const seekHero = (time) => {
+          const seek = () => {
+            heroVideo.currentTime = time;
+          };
+          if (heroVideo.readyState >= 1) seek();
+          else heroVideo.addEventListener("loadedmetadata", seek, { once: true });
+        };
+
+        heroVideo.addEventListener("play", () => {
+          if (!frameRequest) trackHeroStage();
+        });
+        heroVideo.addEventListener("seeked", syncHeroStage);
+
+        // A click on a stage jumps to where it starts (a keyframe of the video) and plays on from there.
+        stageItems.forEach((item) => {
+          item.addEventListener("click", () => {
+            const stage = item.dataset.stage;
+            const time = reducedMotion ? stageStill[stage] : heroTimeline.find((entry) => entry[1] === stage)[0];
+            renderHeroStage(time);
+            seekHero(time);
+            if (!reducedMotion) heroVideo.play().catch(() => {});
+          });
+        });
+
+        if (reducedMotion) {
+          // No motion: hold the finished mesh, the same frame as the poster.
+          heroVideo.autoplay = false;
+          heroVideo.pause();
+          seekHero(posterTime);
+        } else if ("IntersectionObserver" in window) {
+          new IntersectionObserver(([entry]) => {
+            if (entry.isIntersecting) heroVideo.play().catch(() => {});
+            else heroVideo.pause();
+          }, { threshold: 0.05 }).observe(heroVideo);
+        }
+
+        // Autoplay may have started before this script ran, in which case "play" already fired.
+        if (!heroVideo.paused) trackHeroStage();
+      }
+
       const formatIndex = (value) => String(value).padStart(2, "0");
 
       document.querySelectorAll("[data-viewer-group]").forEach((group) => {
