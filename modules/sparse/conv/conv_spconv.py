@@ -28,6 +28,28 @@ from .. import DEBUG
 from . import SPCONV_ALGO
 import spconv.pytorch as spconv
 
+def _run_conv(conv, data):
+    """Run a spconv layer; on CPU, work around two limits of spconv's CPU kernels.
+
+    - They cannot fuse the bias at inference ("cpu don't support act and bias"): it is added afterwards.
+    - They return wrong rows when PyTorch uses several intra-op threads (observed with
+      spconv 2.3.8 + torch 2.6.0: two identical calls differ), so the call runs single-threaded.
+    """
+    if data.features.is_cuda:
+        return conv(data)
+    bias, threads = conv.bias, torch.get_num_threads()
+    conv.bias = None
+    torch.set_num_threads(1)
+    try:
+        out = conv(data)
+    finally:
+        conv.bias = bias
+        torch.set_num_threads(threads)
+    if bias is not None:
+        out = out.replace_feature(out.features + bias.to(out.features.dtype))
+    return out
+
+
 class SparseConv3d(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, dilation=1, padding=None, bias=True, indice_key=None):
         super(SparseConv3d, self).__init__()
@@ -50,7 +72,7 @@ class SparseConv3d(nn.Module):
 
         dtype_ = x.feats.dtype
         x = x.replace(x.feats.type(torch.float32))
-        new_data = self.conv(x.data)
+        new_data = _run_conv(self.conv, x.data)
         new_shape = [x.shape[0], self.conv.out_channels]
         new_layout = None if spatial_changed else x.layout
 
@@ -96,7 +118,7 @@ class SparseInverseConv3d(nn.Module):
         else:
             data = x.data
 
-        new_data = self.conv(data)
+        new_data = _run_conv(self.conv, data)
         new_shape = [x.shape[0], self.conv.out_channels]
         new_layout = None if spatial_changed else x.layout
         out = SparseTensor(

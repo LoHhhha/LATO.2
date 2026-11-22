@@ -28,7 +28,16 @@ import torch
 import torch.nn as nn
 import copy
 from torch import Tensor
-from torch_scatter import scatter_mean
+try:
+    from torch_scatter import scatter_mean
+except Exception:
+    # torch_scatter ships CUDA / CPU wheels for a few torch builds only.
+    def scatter_mean(src, index, out):
+        """Mean of `src` values scattered along the last dim (pure-PyTorch)."""
+        index = index.expand_as(src)
+        total = torch.zeros_like(out).scatter_add_(-1, index, src.to(out.dtype))
+        count = torch.zeros_like(out).scatter_add_(-1, index, torch.ones_like(src, dtype=out.dtype))
+        return total / count.clamp_(min=1)
 from torch.utils.checkpoint import checkpoint
 
 

@@ -34,6 +34,7 @@ from models import (
     VoxelFieldConditioner,
 )
 import utils.logging as logging
+from utils.device import add_device_arg, autocast, resolve_device
 from utils.inference import build_voxel_fields, edges_to_faces, pad_verts
 from utils.load import load_latov2_model
 
@@ -54,6 +55,7 @@ def parse_args():
     )
     p.add_argument("--num_workers", type=int, default=4)
     p.add_argument("--seed", type=int, default=42)
+    add_device_arg(p)
     # flow sampling
     p.add_argument("--steps", type=int, default=50, help="Euler steps")
     p.add_argument(
@@ -99,7 +101,8 @@ def main():
     logging.info("T-Flow inference starting...")
 
     args = parse_args()
-    device = torch.device("cuda")
+    device = resolve_device(args.device)
+    logging.info(f"device: {device}")
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
     os.makedirs(args.out_dir, exist_ok=True)
@@ -177,7 +180,7 @@ def main():
             )
             z = z_flow.float() / latent_scale
 
-            with torch.autocast("cuda", dtype=torch.bfloat16):
+            with autocast(device):
                 edges_list = tvae.decode(
                     z,
                     verts=verts,

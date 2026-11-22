@@ -3,7 +3,13 @@ import torch
 import trimesh
 from trimesh import grouping
 
-from o_voxel.convert import mesh_to_flexible_dual_grid
+try:
+    from o_voxel.convert import mesh_to_flexible_dual_grid
+except Exception:
+    # o_voxel needs a CUDA toolchain; the NumPy fallback below is used instead.
+    mesh_to_flexible_dual_grid = None
+
+from .cpu_voxelize import active_voxels
 
 MESH_EXTENSIONS = {".obj", ".glb", ".gltf", ".ply", ".stl", ".off"}
 
@@ -95,6 +101,11 @@ def dedup_quantized_mesh(
 def extract_active_voxels(
     vertices: np.ndarray, faces: np.ndarray, resolution: int
 ) -> torch.Tensor:
+    if mesh_to_flexible_dual_grid is None:
+        coords = torch.from_numpy(
+            active_voxels(np.asarray(vertices) * 0.99999, faces, resolution)
+        )
+        return coords.int()  # np.unique already sorts by (x, y, z)
     coords, *_ = mesh_to_flexible_dual_grid(
         vertices=torch.as_tensor(vertices * 0.99999, dtype=torch.float32).contiguous(),
         faces=torch.as_tensor(faces, dtype=torch.int32).contiguous(),

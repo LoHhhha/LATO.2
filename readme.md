@@ -74,6 +74,28 @@
     . ./setup.sh --all
     ```
 
+### Running without an NVIDIA GPU (CPU)
+
+The mesh-to-mesh scripts also run without CUDA. Nothing has to be compiled:
+
+```bash
+python3.10 -m venv .venv && . .venv/bin/activate
+pip install -r requirements-cpu.txt --extra-index-url https://download.pytorch.org/whl/cpu
+python scripts/ckpt_download.py
+python scripts/e2e_inference.py --mesh_dir assets/example_mesh --out_dir outputs/e2e_run/example --vert_num 2000 --device cpu
+```
+
+What changes when the CUDA-only packages are missing:
+
+| Package | Fallback |
+|-|-|
+| `flash_attn` | `ATTN_BACKEND=sdpa` (selected automatically): `torch.nn.functional.scaled_dot_product_attention` |
+| `o_voxel` (+ nvdiffrast, CuMesh, FlexGEMM) | NumPy voxelizer (`dataset/cpu_voxelize.py`), same "voxels around crossed grid edges" rule |
+| `torch_scatter` | pure-PyTorch `scatter_mean` |
+| `spconv-cu124` | CPU build `spconv` (bias added outside the kernel, conv run single-threaded: the CPU kernels return wrong rows with several intra-op threads) |
+
+`--device` defaults to `auto` (CUDA when available, CPU otherwise). On CPU the models run in float32 without autocast, so expect minutes instead of seconds: about 24 min for one mesh at `--vert_num 5000` on a 12-core Ryzen 9 7900X (12 threads). `image_e2e_inference.py` accepts `--device` too but has not been tried on CPU.
+
 ## Checkpoints
 
 Download the pretrained weights from the [Hugging Face Hub](https://huggingface.co/0x4c48/LATO.2) into `ckpt/`:

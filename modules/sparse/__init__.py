@@ -44,8 +44,13 @@ def __from_env():
         BACKEND = env_sparse_backend
     if env_sparse_debug is not None:
         DEBUG = env_sparse_debug == '1'
-    if env_sparse_attn is not None and env_sparse_attn in ['xformers', 'flash_attn']:
+    if env_sparse_attn is not None and env_sparse_attn in ['xformers', 'flash_attn', 'sdpa']:
         ATTN = env_sparse_attn
+    elif ATTN == 'flash_attn':
+        # flash-attn is CUDA-only; use the pure-PyTorch backend when it is not installed.
+        import importlib.util
+        if importlib.util.find_spec('flash_attn') is None:
+            ATTN = 'sdpa'
         
     print(f"[SPARSE] Backend: {BACKEND}, Attention: {ATTN}")
         
@@ -61,7 +66,7 @@ def set_debug(debug: bool):
     global DEBUG
     DEBUG = debug
 
-def set_attn(attn: Literal['xformers', 'flash_attn']):
+def set_attn(attn: Literal['xformers', 'flash_attn', 'sdpa']):
     global ATTN
     ATTN = attn
     

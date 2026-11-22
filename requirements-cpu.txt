@@ -1,0 +1,16 @@
+# CPU-only runtime (no CUDA toolkit needed). Tested with Python 3.10.
+# pip install -r requirements-cpu.txt --extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.6.0+cpu
+torchvision==0.21.0+cpu
+spconv==2.3.8
+numpy
+trimesh
+tqdm
+pillow
+psutil
+opencv-python-headless
+huggingface_hub
+open3d==0.19.0
+plyfile
+zstandard
+easydict
