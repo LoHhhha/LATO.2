@@ -50,6 +50,7 @@ from models import (
 )
 from modules.sparse import SparseTensor
 import utils.logging as logging
+from utils.device import add_device_arg, autocast, resolve_device
 from utils.export import export_mesh, export_vertex
 from utils.inference import (
     build_voxel_fields,
@@ -88,6 +89,7 @@ def parse_args():
     p.add_argument("--num_workers", type=int, default=4)
     p.add_argument("--inference_threshold", type=float, default=0.5)
     p.add_argument("--seed", type=int, default=42)
+    add_device_arg(p)
     # vertex flow sampling
     p.add_argument("--vflow_steps", type=int, default=24, help="V-Flow Euler steps")
     p.add_argument("--cfg_strength", type=float, default=3.0)
@@ -146,7 +148,8 @@ def main():
     logging.info("End-to-end inference starting...")
 
     args = parse_args()
-    device = torch.device("cuda")
+    device = resolve_device(args.device)
+    logging.info(f"device: {device}")
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
     os.makedirs(args.out_dir, exist_ok=True)
@@ -255,7 +258,7 @@ def main():
 
         # ---- stage 1: V-Flow on the 64^3 active voxels -> V-VAE vertex decode ----
         min_active = batch[f"active_voxels_{min_res}"]
-        with torch.no_grad(), torch.autocast("cuda", dtype=torch.bfloat16):
+        with torch.no_grad(), autocast(device):
             min_active_coords = min_active.to(device)
             noise = SparseTensor(
                 coords=min_active_coords.int(),
@@ -332,7 +335,7 @@ def main():
             )
             z = z_flow.float() / latent_scale
 
-            with torch.autocast("cuda", dtype=torch.bfloat16):
+            with autocast(device):
                 edges_list = tvae.decode(
                     z,
                     verts=verts,

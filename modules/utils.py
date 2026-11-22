@@ -127,9 +127,12 @@ def flatten_coords(coords_4d: torch.Tensor):
     return flat_coords
 
 def manual_cast(tensor, dtype):
-    if not torch.is_autocast_enabled():
-        return tensor.type(dtype)
-    return tensor
+    if torch.is_autocast_enabled():
+        return tensor
+    if dtype == torch.bfloat16 and tensor.device.type != "cuda":
+        # bf16 modules keep float32 weights and rely on CUDA autocast; without it stay in float32.
+        return tensor.float()
+    return tensor.type(dtype)
 
 
 def str_to_dtype(dtype_str: str):

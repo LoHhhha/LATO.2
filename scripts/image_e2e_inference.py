@@ -58,6 +58,7 @@ from models.trellis_ss import (
 )
 from modules.sparse import SparseTensor
 import utils.logging as logging
+from utils.device import add_device_arg, autocast, resolve_device
 from utils.export import export_mesh, export_vertex
 from utils.image import IMAGE_EXTENSIONS, crop_foreground, load_rgba
 from utils.inference import (
@@ -110,6 +111,7 @@ def parse_args():
     )
     p.add_argument("--inference_threshold", type=float, default=0.5)
     p.add_argument("--seed", type=int, default=42)
+    add_device_arg(p)
     # conditioning image
     p.add_argument(
         "--crop_padding",
@@ -181,7 +183,8 @@ def main():
     logging.info("Image end-to-end inference starting...")
 
     args = parse_args()
-    device = torch.device("cuda")
+    device = resolve_device(args.device)
+    logging.info(f"device: {device}")
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
     os.makedirs(args.out_dir, exist_ok=True)
@@ -346,7 +349,7 @@ def main():
             dtype=torch.float32,
             device=device,
         )
-        with torch.no_grad(), torch.autocast("cuda", dtype=torch.bfloat16):
+        with torch.no_grad(), autocast(device):
             min_active_coords = min_active.to(device)
             noise = SparseTensor(
                 coords=min_active_coords.int(),
@@ -418,7 +421,7 @@ def main():
             )
             z = z_flow.float() / latent_scale
 
-            with torch.autocast("cuda", dtype=torch.bfloat16):
+            with autocast(device):
                 edges_list = tvae.decode(
                     z,
                     verts=verts,

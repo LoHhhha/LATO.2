@@ -30,6 +30,7 @@ from dataset.voxel_dataset import VoxelVertexDataset, collate_fn
 from models import OffsetHead, VDFEncoder, VertexVAE
 from modules.sparse import SparseTensor
 import utils.logging as logging
+from utils.device import add_device_arg, autocast, resolve_device
 from utils.export import export_vertex
 from utils.load import load_latov2_model
 
@@ -60,6 +61,7 @@ def parse_args():
         help="sample the posterior (training-style) instead of taking its mode",
     )
     p.add_argument("--seed", type=int, default=42)
+    add_device_arg(p)
     args = p.parse_args()
     if args.num_samples is not None and args.num_samples <= 0:
         args.num_samples = None  # <= 0 means "all", not python slice semantics
@@ -70,7 +72,8 @@ def main():
     logging.info("V-VAE inference starting...")
 
     args = parse_args()
-    device = torch.device("cuda")
+    device = resolve_device(args.device)
+    logging.info(f"device: {device}")
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
     os.makedirs(args.out_dir, exist_ok=True)
@@ -122,7 +125,7 @@ def main():
         if "name" not in batch:
             continue
 
-        with torch.no_grad(), torch.autocast("cuda", dtype=torch.bfloat16):
+        with torch.no_grad(), autocast(device):
             point_cloud = batch[f"point_cloud_{res}"].to(device)
             vertex_added_active_coords = batch[f"vertex_added_active_voxels_{res}"].to(device)
 

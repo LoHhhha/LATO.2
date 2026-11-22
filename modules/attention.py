@@ -9,7 +9,9 @@ try:
 
     _FLASH_ATTN_AVAILABLE = True
 except Exception:
-    flash_attn_varlen_func = None
+    # flash-attn is CUDA-only: fall back to the pure-PyTorch implementation.
+    from .sdpa_compat import flash_attn_varlen_func
+
     _FLASH_ATTN_AVAILABLE = False
 
 

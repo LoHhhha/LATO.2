@@ -30,6 +30,8 @@ if ATTN == 'xformers':
     import xformers.ops as xops
 elif ATTN == 'flash_attn':
     import flash_attn
+elif ATTN == 'sdpa':
+    from ... import sdpa_compat as flash_attn
 else:
     raise ValueError(f"Unknown attention module: {ATTN}")
 
@@ -219,7 +221,7 @@ def sparse_scaled_dot_product_attention(*args, **kwargs):
         v = v.unsqueeze(0)
         mask = xops.fmha.BlockDiagonalMask.from_seqlens(q_seqlen, kv_seqlen)
         out = xops.memory_efficient_attention(q, k, v, mask)[0]
-    elif ATTN == 'flash_attn':
+    elif ATTN in ('flash_attn', 'sdpa'):
         cu_seqlens_q = torch.cat([torch.tensor([0]), torch.cumsum(torch.tensor(q_seqlen), dim=0)]).int().to(device)
         if num_all_args in [2, 3]:
             cu_seqlens_kv = torch.cat([torch.tensor([0]), torch.cumsum(torch.tensor(kv_seqlen), dim=0)]).int().to(device)
