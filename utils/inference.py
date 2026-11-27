@@ -193,12 +193,162 @@ def triangulate_open_rings(
     return np.asarray(new_faces, dtype=np.int32)
 
 
+def _fibonacci_dirs(n):
+    i = np.arange(n) + 0.5
+    z = 1 - 2 * i / n
+    r = np.sqrt(1 - z * z)
+    phi = np.pi * (1 + 5 ** 0.5) * i
+    return np.stack([r * np.cos(phi), r * np.sin(phi), z], 1)
+
+
+def _face_visibility(tri, normal, area, num_dirs=48, res=160, samples=80000, seed=0):
+    """Per face: summed n.d over view directions it is seen from, split by sign.
+
+    Each direction gets an orthographic depth buffer splatted from surface samples
+    and max-filtered over 3x3 cells so occluders have no pinholes; a face is seen
+    when its centroid is at the front of its cell. Needs no orientation and
+    tolerates holes. Returns (front, back): seen with n.d > 0 and with n.d < 0.
+    """
+    rng = np.random.default_rng(seed)
+    fi = rng.choice(len(tri), size=samples, p=area / max(area.sum(), 1e-12))
+    uv = rng.random((samples, 2))
+    over = uv.sum(1) > 1
+    uv[over] = 1 - uv[over]
+    t = tri[fi]
+    pts = t[:, 0] + uv[:, :1] * (t[:, 1] - t[:, 0]) + uv[:, 1:] * (t[:, 2] - t[:, 0])
+    cen = tri.mean(1)
+    pix = 1.2 / res
+    front = np.zeros(len(tri))
+    back = np.zeros(len(tri))
+    for d in _fibonacci_dirs(num_dirs):
+        a = np.array([1.0, 0, 0]) if abs(d[0]) < 0.9 else np.array([0, 1.0, 0])
+        u = np.cross(d, a)
+        u /= np.linalg.norm(u)
+        w = np.cross(d, u)
+
+        def cell(p):
+            ij = np.floor((np.stack([p @ u, p @ w], 1) + 0.6) / pix).astype(np.int64)
+            return np.clip(ij, 0, res - 1) @ np.array([res, 1])
+
+        depth = np.full(res * res, -np.inf)
+        np.maximum.at(depth, cell(pts), pts @ d)
+        grid = np.pad(depth.reshape(res, res), 1, constant_values=-np.inf)
+        depth = np.max([grid[i:i + res, j:j + res] for i in range(3) for j in range(3)], axis=0).ravel()
+        nd = normal @ d
+        # A slanted face's own samples sit higher in neighbouring cells; allow for its slope.
+        slope = np.sqrt(np.maximum(1 - nd * nd, 0)) / np.maximum(np.abs(nd), 0.2)
+        seen = cen @ d >= depth[cell(cen)] - pix * (1.0 + 0.5 * slope)
+        front += seen * np.maximum(nd, 0)
+        back += seen * np.maximum(-nd, 0)
+    return front, back
+
+
+def orient_faces(
+    faces: np.ndarray,
+    verts: np.ndarray,
+    num_dirs: int = 48,
+    conflict: float = 0.001,
+    seam_cos: float = 0.9,
+) -> np.ndarray:
+    """Consistent, outward winding for a triangle soup whose index order is arbitrary.
+
+    Faces are joined across two-face edges from the smoothest edge to the sharpest,
+    tracking which faces must flip relative to each other. An edge is left as a seam
+    when it would contradict earlier joins (non-orientable surface) or when both
+    sides already have clear, opposite evidence of which way they face; so seams
+    fall on sharp folds rather than wherever a traversal happens to close a loop.
+    Each joined patch is then flipped as a whole so its faces point toward the view
+    directions they are visible from (signed volume if never visible). Only the
+    winding changes; the set of triangles is the same.
+    """
+    faces = np.asarray(faces, dtype=np.int64).reshape(-1, 3).copy()
+    num_faces = faces.shape[0]
+    v = np.asarray(verts, dtype=np.float64)
+    if num_faces == 0:
+        return faces.astype(np.int32)
+    lo, hi = v.min(0), v.max(0)
+    v = (v - (lo + hi) / 2) / max(float((hi - lo).max()), 1e-12)
+
+    tri = v[faces]
+    cross = np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0])
+    area = np.linalg.norm(cross, axis=1) / 2
+    normal = cross / np.maximum(2 * area, 1e-12)[:, None]
+
+    # Two-face edges: which faces they join and whether those faces disagree.
+    half = faces[:, [0, 1, 1, 2, 2, 0]].reshape(-1, 2)
+    owner = np.repeat(np.arange(num_faces), 3)
+    key = np.sort(half, axis=1)
+    order = np.lexsort((key[:, 1], key[:, 0]))
+    key_sorted = key[order]
+    starts = np.flatnonzero(np.r_[True, np.any(key_sorted[1:] != key_sorted[:-1], axis=1)])
+    counts = np.diff(np.r_[starts, len(order)])
+    pairs = order[starts[counts == 2][:, None] + np.array([0, 1])]
+    fa, fb = owner[pairs[:, 0]], owner[pairs[:, 1]]
+    disagree = half[pairs[:, 0], 0] == half[pairs[:, 1], 0]
+    keep = fa != fb
+    fa, fb, disagree = fa[keep], fb[keep], disagree[keep]
+    smooth = np.einsum("ij,ij->i", normal[fa], normal[fb]) * np.where(disagree, -1.0, 1.0)
+
+    front, back = _face_visibility(tri, normal, area, num_dirs) if num_dirs else (np.zeros(num_faces),) * 2
+    votes = (front - back) * area
+    # Patches that both have more than this much evidence and disagree stay apart.
+    tau = conflict * np.abs(votes).sum() if conflict >= 0 else np.inf
+
+    # Union-find with parity: rel[f] = flip of f relative to its parent;
+    # pvote[root] = visibility vote of the root's current orientation.
+    parent = np.arange(num_faces)
+    rel = np.zeros(num_faces, dtype=bool)
+    pvote = votes.copy()
+
+    def find(f):
+        path = []
+        while parent[f] != f:
+            path.append(f)
+            f = parent[f]
+        acc = False
+        for g in reversed(path):
+            acc ^= rel[g]
+            rel[g] = acc
+            parent[g] = f
+        return f
+
+    for e in np.argsort(-smooth, kind="stable"):
+        a, b = fa[e], fb[e]
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            q = rel[a] ^ rel[b] ^ disagree[e]
+            vb = -pvote[rb] if q else pvote[rb]
+            # At a sharp edge whose two sides already know they face opposite ways: keep a seam.
+            if smooth[e] < seam_cos and pvote[ra] * vb < 0 and min(abs(pvote[ra]), abs(vb)) > tau:
+                continue
+            parent[rb] = ra
+            rel[rb] = q
+            pvote[ra] += vb
+    roots = np.array([find(f) for f in range(num_faces)])
+    flip = rel.copy()
+
+    # Outward per patch: visibility vote, signed volume when never seen.
+    sign = np.where(flip, -1.0, 1.0)
+    patch_vote = np.bincount(roots, votes * sign, num_faces)
+    cen = np.stack([np.bincount(roots, tri[:, :, d].mean(1) * area, num_faces) for d in range(3)], 1)
+    cen /= np.maximum(np.bincount(roots, area, num_faces), 1e-12)[:, None]
+    rel_tri = tri - cen[roots][:, None, :]
+    six_vol = np.einsum("ij,ij->i", rel_tri[:, 0], np.cross(rel_tri[:, 1], rel_tri[:, 2])) * sign
+    patch_vol = np.bincount(roots, six_vol, num_faces)
+    seen = np.abs(patch_vote) > 1e-9
+    inward = np.where(seen, patch_vote < 0, patch_vol < 0)
+    flip ^= inward[roots]
+    faces[flip] = faces[flip][:, [0, 2, 1]]
+    return faces.astype(np.int32)
+
+
 def edges_to_faces(
     edges: np.ndarray,
     num_valid: int,
     verts: np.ndarray,
     fill_open_rings: bool = True,
     max_ring_size: int = 12,
+    orient: bool = True,
 ) -> np.ndarray:
     adj = np.zeros((num_valid, num_valid), dtype=bool)
     if edges.shape[0] > 0:
@@ -221,4 +371,7 @@ def edges_to_faces(
         fill = triangulate_open_rings(adj, faces, verts, max_ring_size)
         if fill.shape[0] > 0:
             faces = np.concatenate([faces, fill], axis=0) if faces.shape[0] else fill
+    # Triangles come out of the edge cliques with arbitrary winding (u < v < w).
+    if orient:
+        faces = orient_faces(faces, verts)
     return faces
